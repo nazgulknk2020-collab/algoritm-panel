@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Алгоритм решения задач</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti for victory celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+        }
+
+        /* Drag and Drop Visual Feedback Styles */
+        .step-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .step-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .step-card.dragging {
+            opacity: 0.4;
+            transform: scale(0.98);
+        }
+
+        .drop-slot {
+            transition: all 0.2s ease;
+        }
+
+        .drop-slot.drag-over {
+            border-color: #6366f1;
+            background-color: rgba(99, 102, 241, 0.08);
+            transform: scale(1.01);
+        }
+
+        /* Shake animation for incorrect answer */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .animate-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* Bounce pulse for correct placement */
+        @keyframes pulse-success {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+
+        .animate-success {
+            animation: pulse-success 0.4s ease-in-out;
+        }
+
+        /* Custom Scrollbar for sleek look */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header & Navigation -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                    <i class="fa-solid fa-brain text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-xl text-slate-900 leading-tight">Тренировка Алгоритма</h1>
+                    <p class="text-xs text-slate-500 font-medium">Текстовые задачи и смысловое чтение</p>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="flex items-center space-x-3 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80 text-sm font-semibold">
+                <!-- Streak Stat -->
+                <div class="flex items-center space-x-1.5 px-3 py-1 bg-white rounded-xl shadow-xs text-amber-600">
+                    <i class="fa-solid fa-fire text-amber-500"></i>
+                    <span id="scoreCount">0</span>
+                    <span class="text-xs text-slate-400 font-normal">успехов</span>
+                </div>
+                <!-- Timer Stat -->
+                <div class="flex items-center space-x-1.5 px-3 py-1 bg-white rounded-xl shadow-xs text-indigo-600">
+                    <i class="fa-regular fa-clock text-indigo-500"></i>
+                    <span id="timerDisplay">00:00</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-4xl w-full mx-auto px-4 py-6 md:py-10 flex-grow flex flex-col justify-center">
+
+        <!-- Intro Banner / Instruction Card -->
+        <div class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-indigo-100 mb-8 relative overflow-hidden">
+            <div class="relative z-10 max-w-2xl">
+                <span class="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 inline-block backdrop-blur-md">
+                    Интерактивный тренажер (2 столбца)
+                </span>
+                <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight mb-2">
+                    Расставь 5 этапов алгоритма!
+                </h2>
+                <p class="text-indigo-100 text-sm md:text-base leading-relaxed">
+                    Выбери карточку из левого столбца и перетащи (или нажми) в соответствующий слот в правом столбце.
+                </p>
+            </div>
+            <!-- Decorative Background Graphic -->
+            <div class="absolute -right-6 -bottom-10 opacity-15 pointer-events-none text-9xl font-black">
+                1-5
+            </div>
+        </div>
+
+        <!-- Two Columns Container -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            
+            <!-- Left Column: Available Cards -->
+            <div class="bg-slate-200/60 p-5 rounded-3xl border border-slate-300/60 flex flex-col justify-start">
+                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center justify-between">
+                    <span><i class="fa-solid fa-cubes mr-2 text-indigo-500"></i> Доступные карточки</span>
+                    <span class="text-xs text-slate-400 font-normal hidden sm:inline">Нажмите или перетащите</span>
+                </h3>
+
+                <div id="sourcePool" class="flex flex-col space-y-3 min-h-[420px]">
+                    <!-- Dynamic Cards will be rendered here via JS -->
+                </div>
+            </div>
+
+            <!-- Right Column: Target Order Slots -->
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-start">
+                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center justify-between">
+                    <span><i class="fa-solid fa-list-ol mr-2 text-indigo-500"></i> Порядок алгоритма (1 - 5)</span>
+                    <span class="text-xs text-slate-400 font-normal hidden sm:inline">Целевые слоты</span>
+                </h3>
+
+                <div class="flex flex-col space-y-3" id="targetSlotsContainer">
+                    
+                    <!-- Target Slot 1 -->
+                    <div onclick="handleSlotClick(0)" class="drop-slot bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-3.5 min-h-[80px] flex items-center justify-between relative shadow-xs cursor-pointer hover:border-indigo-300 transition-colors" data-slot-index="0">
+                        <div class="flex items-center space-x-3 w-full">
+                            <span class="shrink-0 w-8 h-8 rounded-xl bg-slate-200/80 flex items-center justify-center text-xs font-black text-slate-600 border border-slate-300">1</span>
+                            <div class="slot-placeholder text-slate-400 pointer-events-none flex items-center space-x-2">
+                                <i class="fa-regular fa-square-plus text-base opacity-50"></i>
+                                <span class="text-xs font-medium">Шаг 1</span>
+                            </div>
+                            <div class="slot-content w-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- Target Slot 2 -->
+                    <div onclick="handleSlotClick(1)" class="drop-slot bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-3.5 min-h-[80px] flex items-center justify-between relative shadow-xs cursor-pointer hover:border-indigo-300 transition-colors" data-slot-index="1">
+                        <div class="flex items-center space-x-3 w-full">
+                            <span class="shrink-0 w-8 h-8 rounded-xl bg-slate-200/80 flex items-center justify-center text-xs font-black text-slate-600 border border-slate-300">2</span>
+                            <div class="slot-placeholder text-slate-400 pointer-events-none flex items-center space-x-2">
+                                <i class="fa-regular fa-square-plus text-base opacity-50"></i>
+                                <span class="text-xs font-medium">Шаг 2</span>
+                            </div>
+                            <div class="slot-content w-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- Target Slot 3 -->
+                    <div onclick="handleSlotClick(2)" class="drop-slot bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-3.5 min-h-[80px] flex items-center justify-between relative shadow-xs cursor-pointer hover:border-indigo-300 transition-colors" data-slot-index="2">
+                        <div class="flex items-center space-x-3 w-full">
+                            <span class="shrink-0 w-8 h-8 rounded-xl bg-slate-200/80 flex items-center justify-center text-xs font-black text-slate-600 border border-slate-300">3</span>
+                            <div class="slot-placeholder text-slate-400 pointer-events-none flex items-center space-x-2">
+                                <i class="fa-regular fa-square-plus text-base opacity-50"></i>
+                                <span class="text-xs font-medium">Шаг 3</span>
+                            </div>
+                            <div class="slot-content w-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- Target Slot 4 -->
+                    <div onclick="handleSlotClick(3)" class="drop-slot bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-3.5 min-h-[80px] flex items-center justify-between relative shadow-xs cursor-pointer hover:border-indigo-300 transition-colors" data-slot-index="3">
+                        <div class="flex items-center space-x-3 w-full">
+                            <span class="shrink-0 w-8 h-8 rounded-xl bg-slate-200/80 flex items-center justify-center text-xs font-black text-slate-600 border border-slate-300">4</span>
+                            <div class="slot-placeholder text-slate-400 pointer-events-none flex items-center space-x-2">
+                                <i class="fa-regular fa-square-plus text-base opacity-50"></i>
+                                <span class="text-xs font-medium">Шаг 4</span>
+                            </div>
+                            <div class="slot-content w-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- Target Slot 5 -->
+                    <div onclick="handleSlotClick(4)" class="drop-slot bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-3.5 min-h-[80px] flex items-center justify-between relative shadow-xs cursor-pointer hover:border-indigo-300 transition-colors" data-slot-index="4">
+                        <div class="flex items-center space-x-3 w-full">
+                            <span class="shrink-0 w-8 h-8 rounded-xl bg-slate-200/80 flex items-center justify-center text-xs font-black text-slate-600 border border-slate-300">5</span>
+                            <div class="slot-placeholder text-slate-400 pointer-events-none flex items-center space-x-2">
+                                <i class="fa-regular fa-square-plus text-base opacity-50"></i>
+                                <span class="text-xs font-medium">Шаг 5</span>
+                            </div>
+                            <div class="slot-content w-full"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Notification / Feedback Toast Banner -->
+        <div id="feedbackBanner" class="hidden mb-6 p-4 rounded-2xl border transition-all duration-300 text-sm md:text-base font-semibold flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div id="feedbackIcon" class="w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0"></div>
+                <span id="feedbackText"></span>
+            </div>
+            <button onclick="hideFeedback()" class="text-slate-400 hover:text-slate-600 p-1">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Action Control Buttons -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button id="btnCheck" onclick="checkOrder()" class="w-full sm:w-auto px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 transition-all transform active:scale-95 flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-circle-check text-lg"></i>
+                <span>Проверить ответ</span>
+            </button>
+            <button id="btnReset" onclick="resetBoard()" class="w-full sm:w-auto px-6 py-3.5 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-300 rounded-2xl shadow-sm transition-all transform active:scale-95 flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-rotate-right text-slate-500"></i>
+                <span>Сбросить / Начать заново</span>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-8">
+        <div class="max-w-4xl mx-auto px-4 text-center text-xs text-slate-400 font-medium">
+            Интерактивный тренажер осмысленного чтения и решения текстовых задач
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Data definition for all 5 steps
+        const MASTER_STEPS = [
+            {
+                id: 'read',
+                correctIndex: 0,
+                title: 'ЧИТАЙ',
+                desc: 'Внимательно прочти условие и пойми суть задачи',
+                icon: 'fa-book-open',
+                badgeBg: 'bg-blue-100 text-blue-700 font-bold border border-blue-200'
+            },
+            {
+                id: 'define',
+                correctIndex: 1,
+                title: 'ОПРЕДЕЛИ',
+                desc: 'Выдели главные данные, известные величины и вопрос',
+                icon: 'fa-magnifying-glass',
+                badgeBg: 'bg-amber-100 text-amber-700 font-bold border border-amber-200'
+            },
+            {
+                id: 'model',
+                correctIndex: 2,
+                title: 'ЗАПИШИ МОДЕЛЬ',
+                desc: 'Составь схему, краткую запись, чертеж или формулу',
+                icon: 'fa-pen-ruler',
+                badgeBg: 'bg-emerald-100 text-emerald-700 font-bold border border-emerald-200'
+            },
+            {
+                id: 'solve',
+                correctIndex: 3,
+                title: 'РЕШИ',
+                desc: 'Выполни действия и вычисления по плану',
+                icon: 'fa-calculator',
+                badgeBg: 'bg-purple-100 text-purple-700 font-bold border border-purple-200'
+            },
+            {
+                id: 'check',
+                correctIndex: 4,
+                title: 'ПРОВЕРЬ',
+                desc: 'Убедись в правильности вычислений и ответа',
+                icon: 'fa-clipboard-check',
+                badgeBg: 'bg-rose-100 text-rose-700 font-bold border border-rose-200'
+            }
+        ];
+
+        // State variables
+        let availableSteps = [];
+        let placedSlots = [null, null, null, null, null]; // Slots 0..4
+        let score = 0;
+        let timerSeconds = 0;
+        let timerInterval = null;
+        let timerStarted = false;
+
+        // Elements
+        const sourcePool = document.getElementById('sourcePool');
+        const slotElements = document.querySelectorAll('.drop-slot');
+        const feedbackBanner = document.getElementById('feedbackBanner');
+        const feedbackText = document.getElementById('feedbackText');
+        const feedbackIcon = document.getElementById('feedbackIcon');
+
+        // Sound FX using Web Audio API
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'success') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                osc.frequency.exponentialRampToValueAtTime(659.25, audioCtx.currentTime + 0.15); // E5
+                osc.frequency.exponentialRampToValueAtTime(783.99, audioCtx.currentTime + 0.3); // G5
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            }
+        }
+
+        // Initialization
+        window.onload = function() {
+            initGame();
+        };
+
+        function initGame() {
+            availableSteps = shuffleArray([...MASTER_STEPS]);
+            placedSlots = [null, null, null, null, null];
+            
+            hideFeedback();
+            renderBoard();
+            
+            if (!timerStarted) {
+                startTimer();
+                timerStarted = true;
+            }
+        }
+
+        function shuffleArray(array) {
+            let cur = array.length, rIdx;
+            while (cur !== 0) {
+                rIdx = Math.floor(Math.random() * cur);
+                cur--;
+                [array[cur], array[rIdx]] = [array[rIdx], array[cur]];
+            }
+            return array;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerSeconds = 0;
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+            const secs = (timerSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${mins}:${secs}`;
+        }
+
+        function renderBoard() {
+            sourcePool.innerHTML = '';
+            if (availableSteps.length === 0) {
+                sourcePool.innerHTML = `<div class="h-full flex items-center justify-center text-slate-400 text-xs italic py-10">Все карточки перенесены в правый столбец!</div>`;
+            } else {
+                availableSteps.forEach(step => {
+                    const cardEl = createCardElement(step, false);
+                    sourcePool.appendChild(cardEl);
+                });
+            }
+
+            slotElements.forEach((slotEl, idx) => {
+                const placeholder = slotEl.querySelector('.slot-placeholder');
+                const contentArea = slotEl.querySelector('.slot-content');
+                contentArea.innerHTML = '';
+                
+                slotEl.classList.remove('border-emerald-500', 'border-rose-500', 'bg-emerald-50/30', 'bg-rose-50/30', 'animate-shake', 'animate-success');
+                slotEl.classList.add('border-slate-300');
+
+                const stepInSlot = placedSlots[idx];
+                if (stepInSlot) {
+                    placeholder.classList.add('hidden');
+                    const cardEl = createCardElement(stepInSlot, true, idx);
+                    contentArea.appendChild(cardEl);
+                } else {
+                    placeholder.classList.remove('hidden');
+                }
+            });
+
+            setupDragAndDropEvents();
+        }
+
+        function createCardElement(step, isInSlot, slotIndex = null) {
+            const card = document.createElement('div');
+            card.className = `step-card bg-white rounded-xl p-3 shadow-md border border-slate-200 cursor-grab active:cursor-grabbing flex items-center justify-between w-full relative group hover:border-indigo-400`;
+            card.setAttribute('draggable', 'true');
+            card.setAttribute('data-id', step.id);
+
+            card.onclick = (e) => {
+                e.stopPropagation();
+                playSound('click');
+                if (isInSlot) {
+                    returnToPool(slotIndex);
+                } else {
+                    quickMoveToSlot(step.id);
+                }
+            };
+
+            card.innerHTML = `
+                <div class="flex items-center space-x-2.5">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs ${step.badgeBg} shrink-0">
+                        <i class="fa-solid ${step.icon} mr-1.5"></i> ${step.title}
+                    </span>
+                    <p class="text-[11px] text-slate-600 font-medium leading-tight">${step.desc}</p>
+                </div>
+            `;
+
+            card.addEventListener('dragstart', (e) => {
+                card.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', JSON.stringify({ stepId: step.id, fromSlot: slotIndex }));
+            });
+
+            card.addEventListener('dragend', () => {
+                card.classList.remove('dragging');
+            });
+
+            return card;
+        }
+
+        function setupDragAndDropEvents() {
+            slotElements.forEach(slot => {
+                slot.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    slot.classList.add('drag-over');
+                });
+
+                slot.addEventListener('dragleave', () => {
+                    slot.classList.remove('drag-over');
+                });
+
+                slot.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    slot.classList.remove('drag-over');
+                    
+                    const dataRaw = e.dataTransfer.getData('text/plain');
+                    if (!dataRaw) return;
+                    
+                    const { stepId, fromSlot } = JSON.parse(dataRaw);
+                    const targetSlotIdx = parseInt(slot.getAttribute('data-slot-index'));
+
+                    moveStepToSlot(stepId, fromSlot, targetSlotIdx);
+                });
+            });
+        }
+
+        function handleSlotClick(slotIdx) {
+            if (placedSlots[slotIdx] !== null) {
+                playSound('click');
+                returnToPool(slotIdx);
+            }
+        }
+
+        function moveStepToSlot(stepId, fromSlotIndex, targetSlotIndex) {
+            hideFeedback();
+            
+            let stepObj = MASTER_STEPS.find(s => s.id === stepId);
+            if (!stepObj) return;
+
+            if (fromSlotIndex !== null && fromSlotIndex !== undefined) {
+                placedSlots[fromSlotIndex] = null;
+            } else {
+                availableSteps = availableSteps.filter(s => s.id !== stepId);
+            }
+
+            if (placedSlots[targetSlotIndex] !== null) {
+                const existingStep = placedSlots[targetSlotIndex];
+                if (fromSlotIndex !== null && fromSlotIndex !== undefined) {
+                    placedSlots[fromSlotIndex] = existingStep;
+                } else {
+                    availableSteps.push(existingStep);
+                }
+            }
+
+            placedSlots[targetSlotIndex] = stepObj;
+            renderBoard();
+        }
+
+        function quickMoveToSlot(stepId) {
+            const emptyIdx = placedSlots.findIndex(s => s === null);
+            if (emptyIdx !== -1) {
+                moveStepToSlot(stepId, null, emptyIdx);
+            } else {
+                showFeedback('Все слоты заполнены! Нажмите на любой слот, чтобы освободить место.', 'warning');
+            }
+        }
+
+        function returnToPool(slotIndex) {
+            hideFeedback();
+            const stepObj = placedSlots[slotIndex];
+            if (stepObj) {
+                placedSlots[slotIndex] = null;
+                availableSteps.push(stepObj);
+                renderBoard();
+            }
+        }
+
+        function checkOrder() {
+            if (placedSlots.some(slot => slot === null)) {
+                playSound('error');
+                showFeedback('Пожалуйста, расставьте все 5 этапов перед проверкой!', 'warning');
+                return;
+            }
+
+            let allCorrect = true;
+            
+            slotElements.forEach((slotEl, idx) => {
+                const currentStep = placedSlots[idx];
+                if (currentStep.correctIndex === idx) {
+                    slotEl.classList.remove('border-slate-300', 'border-rose-500');
+                    slotEl.classList.add('border-emerald-500', 'bg-emerald-50/30', 'animate-success');
+                } else {
+                    allCorrect = false;
+                    slotEl.classList.remove('border-slate-300', 'border-emerald-500');
+                    slotEl.classList.add('border-rose-500', 'bg-rose-50/30', 'animate-shake');
+                }
+            });
+
+            if (allCorrect) {
+                score++;
+                document.getElementById('scoreCount').innerText = score;
+                playSound('success');
+                showFeedback('Замечательно! Правильная цепочка: ЧИТАЙ ➔ ОПРЕДЕЛИ ➔ ЗАПИШИ МОДЕЛЬ ➔ РЕШИ ➔ ПРОВЕРЬ!', 'success');
+                triggerConfetti();
+            } else {
+                playSound('error');
+                showFeedback('Есть ошибки в порядке этапов! Проверьте подсвеченные красным позиции и попробуйте снова.', 'error');
+            }
+        }
+
+        function showFeedback(message, type) {
+            feedbackText.innerText = message;
+            feedbackBanner.classList.remove('hidden', 'bg-amber-50', 'border-amber-200', 'text-amber-800', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-800', 'bg-rose-50', 'border-rose-200', 'text-rose-800');
+
+            if (type === 'success') {
+                feedbackBanner.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+                feedbackIcon.className = 'w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0 bg-emerald-500';
+                feedbackIcon.innerHTML = '<i class="fa-solid fa-check"></i>';
+            } else if (type === 'error') {
+                feedbackBanner.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-800');
+                feedbackIcon.className = 'w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0 bg-rose-500';
+                feedbackIcon.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            } else {
+                feedbackBanner.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-800');
+                feedbackIcon.className = 'w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0 bg-amber-500';
+                feedbackIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+            }
+        }
+
+        function hideFeedback() {
+            feedbackBanner.classList.add('hidden');
+        }
+
+        function resetBoard() {
+            playSound('click');
+            initGame();
+        }
+
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 100,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
